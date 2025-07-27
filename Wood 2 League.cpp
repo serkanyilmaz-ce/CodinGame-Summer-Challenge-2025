@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <climits>
 
 using namespace std;
 
@@ -31,121 +30,53 @@ struct Agent
     AgentState states; // Added to keep track of agent's state
 };
 
-unordered_map<int, Agent> agents; // Map of agents indexed by their unique id
+// Map of agents indexed by their unique id
+unordered_map<int, Agent> agents;
 
 // The map is represented as a 2D vector where each element corresponds to a tile
 // Tile types: 0 = empty, 1 = low tile, 2 = high tile
-vector<vector<int>> map; // Game map represented as a 2D vector
+vector<vector<int>> map;
 
-int CheckEnemyCoverTileType(const Agent &attacker, const Agent &enemy)
+int GetClosestEnemy(const Agent &my_agent)
 {
-
-    int cover = 0;
-    int delta_x = enemy.states.x - attacker.states.x;
-    int delta_y = enemy.states.y - attacker.states.y;
-    int dist = abs(delta_x) + abs(delta_y);
-    /*
-        // Check the tile type of the enemy's position
-        if (delta_x > 0 && delta_y == 0) // Enemy is to the right
-        {
-            if (map[enemy.states.x - 1][enemy.states.y] == 1 || map[enemy.states.x - 1][enemy.states.y] == 2)
-                cover = map[enemy.states.x - 1][enemy.states.y];
-        }
-        else if (delta_x < 0 && delta_y == 0) // Enemy is to the left
-        {
-            if (map[enemy.states.x + 1][enemy.states.y] == 1 || map[enemy.states.x + 1][enemy.states.y] == 2)
-                cover = map[enemy.states.x + 1][enemy.states.y];
-        }
-        else if (delta_x == 0 && delta_y > 0) // Enemy is below
-        {
-            if (map[enemy.states.x][enemy.states.y - 1] == 1 || map[enemy.states.x][enemy.states.y - 1] == 2)
-                cover = map[enemy.states.x][enemy.states.y - 1];
-        }
-        else if (delta_x == 0 && delta_y < 0) // Enemy is above
-        {
-            if (map[enemy.states.x][enemy.states.y + 1] == 1 || map[enemy.states.x][enemy.states.y + 1] == 2)
-                cover = map[enemy.states.x][enemy.states.y + 1];
-        }
-        else if (delta_x > 0 && delta_y > 0) // Enemy is below and to the right
-        {
-            if (map[enemy.states.x - 1][enemy.states.y - 1] == 1 || map[enemy.states.x - 1][enemy.states.y - 1] == 2)
-                cover = map[enemy.states.x - 1][enemy.states.y - 1];
-        }
-        else if (delta_x < 0 && delta_y < 0) // Enemy is above and to the left
-        {
-            if (map[enemy.states.x + 1][enemy.states.y + 1] == 1 || map[enemy.states.x + 1][enemy.states.y + 1] == 2)
-                cover = map[enemy.states.x + 1][enemy.states.y + 1];
-        }
-        else if (delta_x > 0 && delta_y < 0) // Enemy is above and to the right
-        {
-            if (map[enemy.states.x - 1][enemy.states.y + 1] == 1 || map[enemy.states.x - 1][enemy.states.y + 1] == 2)
-                cover = map[enemy.states.x - 1][enemy.states.y + 1];
-        }
-        else if (delta_x < 0 && delta_y > 0) // Enemy is below and to the left
-        {
-            if (map[enemy.states.x + 1][enemy.states.y - 1] == 1 || map[enemy.states.x + 1][enemy.states.y - 1] == 2)
-                cover = map[enemy.states.x + 1][enemy.states.y - 1];
-        }
-    */
-
-    // Check the tile type of the enemy's position
-    if (delta_x > 0) // Enemy is to the right
-    {
-        if (map[enemy.states.x - 1][enemy.states.y] == 1 || map[enemy.states.x - 1][enemy.states.y] == 2)
-            cover = map[enemy.states.x - 1][enemy.states.y];
-    }
-    else if (delta_x < 0) // Enemy is to the left
-    {
-        if (map[enemy.states.x + 1][enemy.states.y] == 1 || map[enemy.states.x + 1][enemy.states.y] == 2)
-            cover = map[enemy.states.x + 1][enemy.states.y];
-    }
-
-    return cover;
-}
-
-int CalculateDamage(const Agent &attacker, const Agent &enemy)
-{
-    int base = attacker.soaking_power;
-    // int dist = abs(attacker.states.x - enemy.states.x) + abs(attacker.states.y - enemy.states.y);
-    // if (dist > attacker.optimal_range)
-    // return 0;
-
-    int cover = CheckEnemyCoverTileType(attacker, enemy);
-    if (cover == 2)
-        return base / 4;
-    if (cover == 1)
-        return base / 2;
-    return base;
-}
-
-Agent GetClosestEnemy(const Agent &my_agent)
-{
-    Agent best_target = {-1, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0}};
+    int best_target_id = -1;
     int best_damage = -1;
+    int cover = 0;
 
     for (const auto &pair : agents)
     {
         const Agent &enemy = pair.second;
 
-        if (enemy.player == my_agent.player || enemy.states.wetness >= 100)
+        int delta_x = enemy.states.x - my_agent.states.x;
+
+        if (enemy.player == my_agent.player || enemy.states.wetness >= 100 || delta_x > 4 || delta_x < -4)
             continue;
 
-        int dmg = CalculateDamage(my_agent, enemy);
-        if (dmg > best_damage)
+        if (delta_x > 0) // Enemy is to the right
+            cover = map[enemy.states.y][enemy.states.x - 1];
+        else if (delta_x < 0) // Enemy is to the left
+            cover = map[enemy.states.y][enemy.states.x + 1];
+
+        int base_damage = 100;
+        if (cover == 2) // High tile
+            base_damage /= 4;
+        else if (cover == 1) // Low tile
+            base_damage /= 2;
+
+        if (best_damage < base_damage)
         {
-            best_damage = dmg;
-            best_target = enemy;
+            best_damage = base_damage;
+            best_target_id = enemy.id; // Update the best target
         }
     }
-
-    return best_target;
+    return best_target_id; // Return the id of the best enemy
 }
 
 pair<int, int> GetClosestTile(const Agent &my_agent)
 {
     int closest_tile_x = my_agent.states.x;
     int closest_tile_y = my_agent.states.y;
-    int min_distance = INT_MAX;
+    int min_distance = 100;
 
     for (int i = 0; i < map.size(); i++)
     {
@@ -265,12 +196,10 @@ int main()
                 continue;
             // 1; MOVE 6 3; SHOOT 4
             ::pair<int, int> closest_tile = GetClosestTile(agent); // Get the closest tile to the agent
-            Agent target_agent = GetClosestEnemy(agent);
-            cout << agent.id << "; ";
             if (closest_tile.first == 1)
-                cout << agent.id << "; MOVE " << closest_tile.first - 1 << " " << closest_tile.second << "; SHOOT " << target_agent.id << endl;
+                cout << agent.id << "; MOVE " << closest_tile.first - 1 << " " << closest_tile.second << "; SHOOT " << GetClosestEnemy(agent) << endl;
             else if (closest_tile.first == 11)
-                cout << agent.id << "; MOVE " << closest_tile.first + 1 << " " << closest_tile.second << "; SHOOT " << target_agent.id << endl;
+                cout << agent.id << "; MOVE " << closest_tile.first + 1 << " " << closest_tile.second << "; SHOOT " << GetClosestEnemy(agent) << endl;
         }
     }
 }

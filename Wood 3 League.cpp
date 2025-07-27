@@ -84,6 +84,8 @@ int main()
     cin >> agent_count;
     cin.ignore();
 
+    Agent target_agent = {-1, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0}}; // Initialize target agent with high wetness
+
     for (int i = 0; i < agent_count; i++)
     {
       int agent_id;
@@ -96,33 +98,28 @@ int main()
       cin.ignore();
 
       agents[agent_id].states = {x, y, cooldown, splash_bombs, wetness};
-    }
 
-    Agent target_agent = {-1, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0}}; // Initialize target agent with high wetness
-
-    for (const auto &pair : agents)
-    {
-      const Agent &agent = pair.second;
-      int agent_id = pair.first;
-
-      // Skip if the agent is controlled by the player
-      if (agent.player == my_id)
+      // Skip if the agent is controlled by the player or has high wetness
+      if (agents[agent_id].player == my_id)
         continue;
-
-      // Check if this agent is controlled by the opponent
-      if (agent.states.wetness > target_agent.states.wetness || agent.states.wetness < 100)
+      // Find the agent with the most wetness
+      if (target_agent.agent_id == -1 || target_agent.states.wetness < wetness)
       {
-        target_agent = agent; // Find the agent with the least wetness
+        target_agent = agents[agent_id]; // Initialize target agent
       }
     }
 
     int my_agent_count; // Number of alive agents controlled by you
     cin >> my_agent_count;
     cin.ignore();
-    
-    for (int i = 0; i < my_agent_count; i++)
+
+    for (const auto &pair : agents)
     {
-      cout << agents[i + 1].agent_id << "; SHOOT " << target_agent.agent_id << endl;
+      const Agent &agent = pair.second;
+      if (agent.player != my_id || agent.states.wetness >= 100)
+        continue;
+
+      cout << agent.agent_id << "; SHOOT " << target_agent.agent_id << endl;
     }
   }
 }
